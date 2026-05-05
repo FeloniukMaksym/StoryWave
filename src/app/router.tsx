@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { SignInPage } from '@/features/auth/SignInPage';
 import { AuthGuard } from '@/features/auth/AuthGuard';
 import { LibraryPage } from '@/features/library/LibraryPage';
+import { DriveBrowserPage } from '@/features/drive-browser/DriveBrowserPage';
 
 export function AppRouter() {
   return (
@@ -12,6 +13,14 @@ export function AppRouter() {
         element={
           <AuthGuard>
             <LibraryPage />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/browse"
+        element={
+          <AuthGuard>
+            <DriveBrowserPage />
           </AuthGuard>
         }
       />

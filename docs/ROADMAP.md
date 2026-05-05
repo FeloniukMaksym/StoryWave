@@ -57,15 +57,15 @@
 
 Можна навігувати по своєму Google Drive і бачити папки + аудіофайли.
 
-- [ ] `lib/drive.ts` — функції `listFolder(folderId)`, `getFile(fileId)` з Bearer auth
-- [ ] Inteceptor / wrapper щоб брати свіжий `provider_token` з Supabase session
-- [ ] `features/drive-browser/useDrive.ts` — TanStack Query хуки `useFolderContents(folderId)`
-- [ ] `features/drive-browser/DriveBrowserPage.tsx` — список вмісту з MUI `List`
-- [ ] Навігація вглиб (тап на папку → роутимо на `/browse?folderId=...`)
-- [ ] Breadcrumb навгорі (`Home / Audiobooks / Sapkowski`)
-- [ ] Іконки: папка vs файл (MUI icons)
-- [ ] Loading state (Skeleton), empty state, error state
-- [ ] Кнопка "Use this folder as book" — поки що просто `console.log(folderId)`
+- [x] `lib/drive.ts` — функції `listFolder(folderId)`, `getFile(fileId)` з Bearer auth
+- [x] Inteceptor / wrapper щоб брати свіжий `provider_token` з Supabase session
+- [x] `features/drive-browser/useDrive.ts` — TanStack Query хуки `useFolderContents(folderId)`
+- [x] `features/drive-browser/DriveBrowserPage.tsx` — список вмісту з MUI `List`
+- [x] Навігація вглиб (тап на папку → роутимо на `/browse?folderId=...`)
+- [x] Breadcrumb навгорі (`Home / Audiobooks / Sapkowski`)
+- [x] Іконки: папка vs файл (MUI icons)
+- [x] Loading state (Skeleton), empty state, error state
+- [x] Кнопка "Use this folder as book" — поки що просто `console.log(folderId)`
 
 ### Definition of done
 Заходжу через `/browse`, бачу корінь Drive, можу клікати в папки, бачу аудіофайли. Все mobile-first, на телефоні виглядає нормально.
