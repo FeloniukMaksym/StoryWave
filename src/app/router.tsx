@@ -3,6 +3,7 @@ import { SignInPage } from '@/features/auth/SignInPage';
 import { AuthGuard } from '@/features/auth/AuthGuard';
 import { LibraryPage } from '@/features/library/LibraryPage';
 import { DriveBrowserPage } from '@/features/drive-browser/DriveBrowserPage';
+import { PlayerPage } from '@/features/player/PlayerPage';
 
 export function AppRouter() {
   return (
@@ -21,6 +22,14 @@ export function AppRouter() {
         element={
           <AuthGuard>
             <DriveBrowserPage />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/player/:bookId"
+        element={
+          <AuthGuard>
+            <PlayerPage />
           </AuthGuard>
         }
       />

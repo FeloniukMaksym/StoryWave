@@ -147,12 +147,13 @@ export function DriveBrowserPage() {
                 size="small"
                 startIcon={<LibraryBooksIcon />}
                 onClick={() => {
-                  // TODO Stage 5: save to Supabase books table
-                  console.log('Add book folder:', folderId, currentFolderName);
-                  navigate('/library');
+                  const title = breadcrumbs.length > 0
+                    ? breadcrumbs[breadcrumbs.length - 1]?.name ?? folderId
+                    : folderId;
+                  navigate(`/player/${folderId}?folderId=${folderId}&title=${encodeURIComponent(title)}`);
                 }}
               >
-                Add to Library
+                Open as Book
               </Button>
             </Stack>
           </Paper>
@@ -209,8 +210,7 @@ export function DriveBrowserPage() {
                       <FolderIcon color="primary" />
                     </ListItemIcon>
                     <ListItemText
-                      primary={item.name}
-                      primaryTypographyProps={{ noWrap: true }}
+                      primary={<Typography noWrap variant="body1">{item.name}</Typography>}
                     />
                   </ListItemButton>
                 </Box>
@@ -226,8 +226,7 @@ export function DriveBrowserPage() {
                       <AudioFileIcon color="action" />
                     </ListItemIcon>
                     <ListItemText
-                      primary={item.name}
-                      primaryTypographyProps={{ noWrap: true }}
+                      primary={<Typography noWrap variant="body1">{item.name}</Typography>}
                       secondary={item.size ? formatBytes(Number(item.size)) : undefined}
                     />
                   </ListItem>

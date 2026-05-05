@@ -77,23 +77,23 @@
 Вибираю файл — він грає. Базові контроли. Без Supabase синку.
 
 ### Audio core
-- [ ] `features/player/usePlayerStore.ts` — Zustand store: `currentFileId`, `playlist`, `isPlaying`, `position`, `duration`, `playbackRate`, `actions`
-- [ ] `features/player/useAudioElement.ts` — створює і керує `<audio>` через ref
-- [ ] Завантаження файлу через Drive API → `blob` → `URL.createObjectURL` → `audio.src`
-- [ ] Cleanup: `revokeObjectURL` при зміні файлу
-- [ ] Loading state поки blob качається
+- [x] `features/player/usePlayerStore.ts` — Zustand store: `currentFileId`, `playlist`, `isPlaying`, `position`, `duration`, `playbackRate`, `actions`
+- [x] `features/player/useAudioElement.ts` — створює і керує `<audio>` через ref
+- [x] Завантаження файлу через Drive API → `blob` → `URL.createObjectURL` → `audio.src`
+- [x] Cleanup: `revokeObjectURL` при зміні файлу
+- [x] Loading state поки blob качається
 
 ### Контроли
-- [ ] `PlayerControls.tsx`: Play/Pause кнопка (велика, центральна)
-- [ ] Skip ±30s кнопки
-- [ ] Previous/Next track (поки disabled)
-- [ ] `ProgressBar.tsx` з MUI `Slider` — drag для seek
-- [ ] Display: поточний час / тривалість (mm:ss)
-- [ ] Switcher швидкості (0.75x – 2x)
+- [x] `PlayerControls.tsx`: Play/Pause кнопка (велика, центральна)
+- [x] Skip ±30s кнопки
+- [x] Previous/Next track (поки disabled)
+- [x] `ProgressBar.tsx` з MUI `Slider` — drag для seek
+- [x] Display: поточний час / тривалість (mm:ss)
+- [x] Switcher швидкості (0.75x – 2x)
 
 ### Тимчасове збереження
-- [ ] Зберігати позицію в `localStorage` на `pause`/`ended`/`beforeunload`
-- [ ] При відкритті того ж файлу — піднімати позицію з `localStorage`
+- [x] Зберігати позицію в `localStorage` на `pause`/`ended`/`beforeunload`
+- [x] При відкритті того ж файлу — піднімати позицію з `localStorage`
 
 ### Definition of done
 Заходжу в папку через browser → тапаю на файл → завантажується → грає → можу паузити, скрабити, міняти швидкість, скіпати ±30с. Закриваю вкладку, повертаюсь — продовжую з тієї ж секунди.
