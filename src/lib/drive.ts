@@ -2,6 +2,63 @@ import { supabase } from './supabase';
 
 const BASE = 'https://www.googleapis.com/drive/v3';
 
+export class DriveAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DriveAuthError';
+  }
+}
+
+// In-memory cache so we don't refresh on every call
+let cachedToken: string | null = null;
+let tokenExpiresAt: number = 0;
+
+async function refreshProviderToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+
+  // Token still valid (with 60s buffer)
+  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
+
+  // Fresh provider_token from session (just signed in or Supabase refreshed)
+  if (session?.provider_token) {
+    cachedToken = session.provider_token;
+    // expires_at on session is Supabase JWT expiry, not Google token expiry.
+    // Google tokens live 1h — set our cache to 55 min from now.
+    tokenExpiresAt = Date.now() + 55 * 60 * 1000;
+    return cachedToken;
+  }
+
+  // Try to exchange provider_refresh_token for a new access token via Google
+  const refreshToken = session?.provider_refresh_token;
+  if (!refreshToken) {
+    throw new DriveAuthError('No Google refresh token — user must re-authenticate.');
+  }
+
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID is not set');
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!res.ok) {
+    await supabase.auth.signOut();
+    throw new DriveAuthError('Google session expired. Please sign in again.');
+  }
+
+  const json = (await res.json()) as { access_token: string; expires_in: number };
+  cachedToken = json.access_token;
+  tokenExpiresAt = Date.now() + json.expires_in * 1000;
+  return cachedToken;
+}
+
 const AUDIO_MIME_TYPES = [
   'audio/mpeg',
   'audio/mp4',
@@ -23,21 +80,24 @@ export interface DriveFile {
   modifiedTime?: string;
 }
 
-async function getToken(): Promise<string> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.provider_token;
-  if (!token) throw new Error('No Google provider token. Please sign in again.');
-  return token;
-}
-
 async function driveGet<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const token = await getToken();
   const url = new URL(`${BASE}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const res = await fetch(url.toString(), {
+  let token = await refreshProviderToken();
+  let res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+  // On 401 invalidate cache and retry once with a fresh token
+  if (res.status === 401) {
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    token = await refreshProviderToken();
+    res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
 
   if (!res.ok) {
     const text = await res.text();
@@ -78,10 +138,20 @@ export async function getFile(fileId: string): Promise<DriveFile> {
 }
 
 export async function downloadFileAsBlob(fileId: string): Promise<Blob> {
-  const token = await getToken();
-  const res = await fetch(`${BASE}/files/${fileId}?alt=media`, {
+  let token = await refreshProviderToken();
+  let res = await fetch(`${BASE}/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+  if (res.status === 401) {
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    token = await refreshProviderToken();
+    res = await fetch(`${BASE}/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
   if (!res.ok) throw new Error(`Drive download error ${res.status}`);
   return res.blob();
 }

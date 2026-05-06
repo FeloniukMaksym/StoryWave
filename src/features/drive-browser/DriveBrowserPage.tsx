@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
@@ -15,7 +16,7 @@ import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Alert from '@mui/material/Alert';
+
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FolderIcon from '@mui/icons-material/Folder';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
@@ -24,6 +25,10 @@ import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useFolderContents, DRIVE_ROOT } from './useDrive';
 import { isFolder, isAudioFile, type DriveFile } from '@/lib/drive';
+import { upsertBook } from '@/lib/supabaseSync';
+import { useAuth } from '@/features/auth/useAuth';
+import { DriveAuthAlert } from '@/features/auth/DriveAuthAlert';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbEntry {
   id: string;
@@ -42,15 +47,31 @@ function parseBreadcrumbs(raw: string | null): BreadcrumbEntry[] {
 export function DriveBrowserPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
 
   const folderId = searchParams.get('folderId') ?? DRIVE_ROOT;
+  const folderName = searchParams.get('folderName') ?? 'Drive';
   const breadcrumbs = parseBreadcrumbs(searchParams.get('bc'));
 
-  const { data: files, isLoading, error, refetch } = useFolderContents(folderId);
+  const { data: files, isLoading, error } = useFolderContents(folderId);
+
+  const handleAddBook = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    try {
+      await upsertBook(user.id, folderId, folderName);
+      void queryClient.invalidateQueries({ queryKey: ['books', user.id] });
+      navigate('/library');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const navigateInto = (folder: DriveFile) => {
-    const newBc: BreadcrumbEntry[] = [...breadcrumbs, { id: folderId, name: currentFolderName }];
-    setSearchParams({ folderId: folder.id, bc: JSON.stringify(newBc) });
+    const newBc: BreadcrumbEntry[] = [...breadcrumbs, { id: folderId, name: folderName }];
+    setSearchParams({ folderId: folder.id, folderName: folder.name, bc: JSON.stringify(newBc) });
   };
 
   const navigateToBreadcrumb = (index: number) => {
@@ -60,11 +81,8 @@ export function DriveBrowserPage() {
     }
     const target = breadcrumbs[index];
     const newBc = breadcrumbs.slice(0, index);
-    setSearchParams({ folderId: target.id, bc: JSON.stringify(newBc) });
+    setSearchParams({ folderId: target.id, folderName: target.name, bc: JSON.stringify(newBc) });
   };
-
-  const currentFolderName =
-    breadcrumbs.length > 0 ? (breadcrumbs[breadcrumbs.length - 1]?.name ?? 'Drive') : 'Drive';
 
   const hasAudioFiles = files?.some(isAudioFile) ?? false;
   const folders = files?.filter(isFolder) ?? [];
@@ -107,15 +125,18 @@ export function DriveBrowserPage() {
               component="span"
               onClick={() => navigateToBreadcrumb(i)}
               sx={{
-                cursor: i < breadcrumbs.length - 1 ? 'pointer' : 'default',
-                color: i < breadcrumbs.length - 1 ? 'text.secondary' : 'text.primary',
-                '&:hover':
-                  i < breadcrumbs.length - 1 ? { color: 'primary.main' } : undefined,
+                cursor: 'pointer',
+                color: 'text.secondary',
+                '&:hover': { color: 'primary.main' },
               }}
             >
               <Typography variant="body2">{bc.name}</Typography>
             </Box>
           ))}
+
+          {folderId !== DRIVE_ROOT && (
+            <Typography variant="body2" color="text.primary">{folderName}</Typography>
+          )}
         </Breadcrumbs>
 
         {/* "Use this folder" CTA — shown when current folder has audio files */}
@@ -145,15 +166,11 @@ export function DriveBrowserPage() {
               <Button
                 variant="contained"
                 size="small"
-                startIcon={<LibraryBooksIcon />}
-                onClick={() => {
-                  const title = breadcrumbs.length > 0
-                    ? breadcrumbs[breadcrumbs.length - 1]?.name ?? folderId
-                    : folderId;
-                  navigate(`/player/${folderId}?folderId=${folderId}&title=${encodeURIComponent(title)}`);
-                }}
+                startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <LibraryBooksIcon />}
+                onClick={() => void handleAddBook()}
+                disabled={saving}
               >
-                Open as Book
+                {saving ? 'Saving…' : 'Add to Library'}
               </Button>
             </Stack>
           </Paper>
@@ -179,16 +196,7 @@ export function DriveBrowserPage() {
 
           {error && (
             <Box sx={{ p: 3 }}>
-              <Alert
-                severity="error"
-                action={
-                  <Button size="small" onClick={() => void refetch()}>
-                    Retry
-                  </Button>
-                }
-              >
-                {error instanceof Error ? error.message : 'Failed to load Drive contents'}
-              </Alert>
+              <DriveAuthAlert error={error} />
             </Box>
           )}
 

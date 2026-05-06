@@ -105,23 +105,23 @@
 Це момент коли додаток стає твоїм — позиція синкається між пристроями.
 
 ### Schema
-- [ ] У Supabase SQL editor створити таблиці `books`, `playback_positions`, `current_session` (SQL з ARCHITECTURE §5)
-- [ ] Створити індекси
-- [ ] Увімкнути RLS і політики (SQL з ARCHITECTURE §5)
-- [ ] Перевірити RLS вручну (спробувати select без auth — має повернути порожньо)
+- [x] У Supabase SQL editor створити таблиці `books`, `playback_positions`, `current_session` (SQL з ARCHITECTURE §5)
+- [x] Створити індекси
+- [x] Увімкнути RLS і політики (SQL з ARCHITECTURE §5)
+- [x] Перевірити RLS вручну (спробувати select без auth — має повернути порожньо)
 
 ### Запис позиції
-- [ ] `features/sync/usePositionSync.ts` — debounced (5с) write до Supabase під час відтворення
-- [ ] Flush на події: `pause`, `ended`, `seeked`, `visibilitychange → hidden`, `beforeunload`
-- [ ] Локальний `localStorage` дублікат (миттєвий, на кожен `timeupdate`)
-- [ ] Оновлення `current_session` при старті відтворення нового файлу
-- [ ] Оновлення `books.last_played_at`
+- [x] `features/sync/usePositionSync.ts` — debounced (5с) write до Supabase під час відтворення
+- [x] Flush на події: `pause`, `ended`, `seeked`, `visibilitychange → hidden`, `beforeunload`
+- [x] Локальний `localStorage` дублікат (миттєвий, на кожен `timeupdate`)
+- [x] Оновлення `current_session` при старті відтворення нового файлу
+- [x] Оновлення `books.last_played_at`
 
 ### Resume логіка
-- [ ] `features/sync/useSessionResume.ts` — на app mount читає `current_session`
-- [ ] При `window focus` / `visibilitychange → visible` — refetch позиції з Supabase
-- [ ] Порівняння локальної vs серверної `updated_at` — newer wins
-- [ ] Стрибаємо плеєр на потрібну секунду, не автограємо (browser policy)
+- [x] `features/sync/useSessionResume.ts` — на app mount читає `current_session`
+- [x] При `window focus` / `visibilitychange → visible` — refetch позиції з Supabase
+- [x] Порівняння локальної vs серверної `updated_at` — newer wins
+- [x] Стрибаємо плеєр на потрібну секунду, не автограємо (browser policy)
 
 ### Definition of done
 Слухаю на ПК. Закриваю. Відкриваю на телефоні через хвилину. Бачу "Continue listening", тапаю — одразу та сама секунда (±5с). Тапаю play — продовжую. Закриваю на телефоні, повертаюсь до ПК — теж усе синкнулось.
@@ -132,17 +132,17 @@
 
 `/library` — список збережених книг + "Продовжити слухати".
 
-- [ ] Кнопка "Use this folder as book" у Drive browser реально створює запис у `books`
-- [ ] Захист від дублікатів (unique constraint на `user_id + drive_folder_id`)
-- [ ] `features/library/useBooks.ts` — TanStack Query хуки `useBooks()`, `useDeleteBook()`
-- [ ] `features/library/LibraryPage.tsx`:
-  - [ ] Великий блок "Continue listening" зверху (з `current_session` + позицією)
-  - [ ] Прогрес-бар на картці "Continue listening"
-  - [ ] Сітка/список усіх книг, відсортованих за `last_played_at desc`
-  - [ ] Empty state ("Add your first book from Drive")
-  - [ ] CTA "Add book" → переходить на `/browse`
-- [ ] Long-press / context menu → "Remove book" (в БД, файли на Drive не чіпаємо)
-- [ ] Тап на книгу → `/player/:bookId`
+- [x] Кнопка "Use this folder as book" у Drive browser реально створює запис у `books`
+- [x] Захист від дублікатів (unique constraint на `user_id + drive_folder_id`)
+- [x] `features/library/useBooks.ts` — TanStack Query хуки `useBooks()`, `useDeleteBook()`
+- [x] `features/library/LibraryPage.tsx`:
+  - [x] Великий блок "Continue listening" зверху (з `current_session` + позицією)
+  - [x] Прогрес-бар на картці "Continue listening"
+  - [x] Сітка/список усіх книг, відсортованих за `last_played_at desc`
+  - [x] Empty state ("Add your first book from Drive")
+  - [x] CTA "Add book" → переходить на `/browse`
+- [x] Long-press / context menu → "Remove book" (в БД, файли на Drive не чіпаємо)
+- [x] Тап на книгу → `/player/:bookId`
 
 ### Definition of done
 Маю на бібліотеці 2-3 книги, можу свайпати між ними, вибрати, продовжити. Видалити книгу зі списку (без видалення файлів).
@@ -234,5 +234,4 @@ Lock-screen контроли і Bluetooth-навушники.
 
 ## Поточний фокус
 
-> **Етап 0 — Підготовка інфраструктури.**
-> Після нього — Етап 1.
+> **Етап 5 завершено.** Далі — Етап 6 (Auto-advance і повноцінний плейлист).

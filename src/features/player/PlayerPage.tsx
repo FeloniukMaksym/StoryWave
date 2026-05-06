@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
+import { DriveAuthAlert } from '@/features/auth/DriveAuthAlert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
@@ -18,39 +19,72 @@ import AudioFileIcon from '@mui/icons-material/AudioFile';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useFolderContents } from '@/features/drive-browser/useDrive';
 import { isAudioFile } from '@/lib/drive';
+import { upsertBook } from '@/lib/supabaseSync';
+import { useAuth } from '@/features/auth/useAuth';
 import { usePlayerStore } from './usePlayerStore';
 import { useAudioElement } from './useAudioElement';
 import { usePositionPersist } from './usePositionPersist';
 import { PlayerControls } from './PlayerControls';
 import { ProgressBar } from './ProgressBar';
+import { usePositionSync } from '@/features/sync/usePositionSync';
 
 export function PlayerPage() {
-  const { bookId = '' } = useParams<{ bookId: string }>();
+  const { bookId: folderIdParam = '' } = useParams<{ bookId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const folderId = searchParams.get('folderId') ?? bookId;
+  const folderId = searchParams.get('folderId') ?? folderIdParam;
   const bookTitle = searchParams.get('title') ?? 'Book';
+  const resumeFileId = searchParams.get('resumeFileId');
+  const resumeAt = Number(searchParams.get('resumeAt') ?? 0);
 
   const { data: files, isLoading: filesLoading, error: filesError } = useFolderContents(folderId);
   const audioFiles = files?.filter(isAudioFile) ?? [];
 
   const store = usePlayerStore();
   const { loadFile, play, pause, seek, skip, setRate } = useAudioElement();
-  usePositionPersist(bookId);
 
+  // supabaseBookId is the UUID from the books table (resolved after upsert)
+  const supabaseBookId = store.supabaseBookId ?? '';
+  usePositionPersist(supabaseBookId);
+  usePositionSync(supabaseBookId);
+
+  // Upsert book into Supabase when folder is loaded, get back the UUID
   useEffect(() => {
-    if (audioFiles.length > 0) {
-      store.setBook(bookId, bookTitle, audioFiles);
-    }
+    if (!user?.id || !folderId || audioFiles.length === 0) return;
+    upsertBook(user.id, folderId, bookTitle)
+      .then((book) => {
+        store.setSupabaseBookId(book.id);
+        store.setBook(folderId, bookTitle, audioFiles);
+      })
+      .catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folderId, audioFiles.length]);
+  }, [folderId, audioFiles.length, user?.id]);
+
+  // Auto-load file when resuming (resumeFileId in URL)
+  const resumeHandledRef = useRef(false);
+  useEffect(() => {
+    if (resumeHandledRef.current) return;
+    if (!resumeFileId || audioFiles.length === 0) return;
+
+    const file = audioFiles.find((f) => f.id === resumeFileId);
+    if (!file) return;
+
+    resumeHandledRef.current = true;
+    loadFile(file.id, file.name, supabaseBookId || folderId)
+      .then(() => {
+        if (resumeAt > 0) seek(resumeAt);
+      })
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeFileId, audioFiles.length, supabaseBookId]);
 
   const handleSelectFile = useCallback(
     async (fileId: string, fileName: string) => {
-      await loadFile(fileId, fileName, bookId);
+      await loadFile(fileId, fileName, supabaseBookId || folderId);
     },
-    [loadFile, bookId],
+    [loadFile, supabaseBookId, folderId],
   );
 
   return (
@@ -114,11 +148,7 @@ export function PlayerPage() {
           </Box>
         )}
 
-        {filesError && (
-          <Alert severity="error">
-            {filesError instanceof Error ? filesError.message : 'Failed to load files'}
-          </Alert>
-        )}
+        {filesError && <DriveAuthAlert error={filesError} />}
 
         {!filesLoading && audioFiles.length > 0 && (
           <Paper>
