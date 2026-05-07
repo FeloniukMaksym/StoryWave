@@ -6,8 +6,10 @@ import { localPosition } from './localPosition';
 const audio = new Audio();
 audio.preload = 'auto';
 
-export function useAudioElement() {
+export function useAudioElement(onEnded?: () => void) {
   const blobUrlRef = useRef<string | null>(null);
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
   const store = usePlayerStore();
 
   const loadFile = useCallback(
@@ -82,17 +84,20 @@ export function useAudioElement() {
     const onPause = () => store.setIsPlaying(false);
     const onTimeUpdate = () => store.setPosition(audio.currentTime);
     const onDurationChange = () => store.setDuration(audio.duration || 0);
+    const onEndedHandler = () => onEndedRef.current?.();
 
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('ended', onEndedHandler);
 
     return () => {
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('ended', onEndedHandler);
     };
   }, [store]);
 

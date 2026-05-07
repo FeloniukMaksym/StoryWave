@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Alert from '@mui/material/Alert';
 import { DriveAuthAlert } from '@/features/auth/DriveAuthAlert';
@@ -12,6 +12,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -40,10 +41,31 @@ export function PlayerPage() {
   const resumeAt = Number(searchParams.get('resumeAt') ?? 0);
 
   const { data: files, isLoading: filesLoading, error: filesError } = useFolderContents(folderId);
-  const audioFiles = files?.filter(isAudioFile) ?? [];
+  const audioFiles = (files?.filter(isAudioFile) ?? []).slice().sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+  );
 
   const store = usePlayerStore();
-  const { loadFile, play, pause, seek, skip, setRate } = useAudioElement();
+  const [bookFinished, setBookFinished] = useState(false);
+
+  const handleEnded = useCallback(() => {
+    const { currentFileId, supabaseBookId: sbId } = usePlayerStore.getState();
+    const bookKey = sbId || folderId;
+    const idx = audioFiles.findIndex((f) => f.id === currentFileId);
+    if (idx === -1) return;
+
+    if (idx < audioFiles.length - 1) {
+      const next = audioFiles[idx + 1];
+      void loadFile(next.id, next.name, bookKey).then(() => {
+        void play();
+      });
+    } else {
+      setBookFinished(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioFiles, folderId]);
+
+  const { loadFile, play, pause, seek, skip, setRate } = useAudioElement(handleEnded);
 
   // supabaseBookId is the UUID from the books table (resolved after upsert)
   const supabaseBookId = store.supabaseBookId ?? '';
@@ -82,10 +104,27 @@ export function PlayerPage() {
 
   const handleSelectFile = useCallback(
     async (fileId: string, fileName: string) => {
+      setBookFinished(false);
       await loadFile(fileId, fileName, supabaseBookId || folderId);
     },
     [loadFile, supabaseBookId, folderId],
   );
+
+  const currentIdx = audioFiles.findIndex((f) => f.id === store.currentFileId);
+
+  const handlePrev = useCallback(() => {
+    if (currentIdx <= 0) return;
+    const prev = audioFiles[currentIdx - 1];
+    setBookFinished(false);
+    void loadFile(prev.id, prev.name, supabaseBookId || folderId);
+  }, [currentIdx, audioFiles, loadFile, supabaseBookId, folderId]);
+
+  const handleNext = useCallback(() => {
+    if (currentIdx === -1 || currentIdx >= audioFiles.length - 1) return;
+    const next = audioFiles[currentIdx + 1];
+    setBookFinished(false);
+    void loadFile(next.id, next.name, supabaseBookId || folderId);
+  }, [currentIdx, audioFiles, loadFile, supabaseBookId, folderId]);
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 2, md: 4 } }}>
@@ -124,9 +163,13 @@ export function PlayerPage() {
                 isPlaying={store.isPlaying}
                 isLoading={store.isLoading}
                 playbackRate={store.playbackRate}
+                hasPrev={currentIdx > 0}
+                hasNext={currentIdx !== -1 && currentIdx < audioFiles.length - 1}
                 onPlay={play}
                 onPause={pause}
                 onSkip={skip}
+                onPrev={handlePrev}
+                onNext={handleNext}
                 onRateChange={setRate}
               />
             </Stack>
@@ -197,6 +240,14 @@ export function PlayerPage() {
           <Alert severity="info">No audio files found in this folder.</Alert>
         )}
       </Stack>
+
+      <Snackbar
+        open={bookFinished}
+        message="Book finished"
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={() => setBookFinished(false)}
+        autoHideDuration={6000}
+      />
     </Container>
   );
 }
