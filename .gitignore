@@ -44,3 +44,5 @@ pnpm-debug.log*
 .parcel-cache/
 .eslintcache
 .vite/
+
+.vercel
