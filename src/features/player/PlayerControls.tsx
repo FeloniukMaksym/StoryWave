@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -46,64 +47,84 @@ export function PlayerControls({
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       {/* Main controls row */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <IconButton
-          onClick={onPrev}
-          disabled={disabled || isLoading || !hasPrev}
-          size="large"
-          aria-label="Previous track"
-        >
-          <SkipPreviousIcon fontSize="large" />
-        </IconButton>
+        <motion.div whileTap={{ scale: 0.85 }}>
+          <IconButton
+            onClick={onPrev}
+            disabled={disabled || isLoading || !hasPrev}
+            size="large"
+            aria-label="Previous track"
+          >
+            <SkipPreviousIcon fontSize="large" />
+          </IconButton>
+        </motion.div>
 
-        <IconButton
-          onClick={() => onSkip(-30)}
-          disabled={disabled || isLoading}
-          size="large"
-          aria-label="Skip back 30 seconds"
-        >
-          <Replay30Icon fontSize="large" />
-        </IconButton>
+        <motion.div whileTap={{ scale: 0.85 }}>
+          <IconButton
+            onClick={() => onSkip(-30)}
+            disabled={disabled || isLoading}
+            size="large"
+            aria-label="Skip back 30 seconds"
+          >
+            <Replay30Icon fontSize="large" />
+          </IconButton>
+        </motion.div>
 
-        <IconButton
-          onClick={isPlaying ? onPause : onPlay}
-          disabled={disabled || isLoading}
-          size="large"
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          sx={{
-            bgcolor: 'primary.main',
-            color: 'background.default',
-            width: 64,
-            height: 64,
-            '&:hover': { bgcolor: 'primary.dark' },
-            '&:disabled': { bgcolor: 'action.disabledBackground' },
-          }}
-        >
-          {isLoading ? (
-            <CircularProgress size={28} color="inherit" />
-          ) : isPlaying ? (
-            <PauseIcon fontSize="large" />
-          ) : (
-            <PlayArrowIcon fontSize="large" />
-          )}
-        </IconButton>
+        {/* Play/pause — tap scale + icon swap animation */}
+        <motion.div whileTap={{ scale: 0.88 }} style={{ display: 'inline-flex' }}>
+          <IconButton
+            onClick={isPlaying ? onPause : onPlay}
+            disabled={disabled || isLoading}
+            size="large"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'background.default',
+              width: 64,
+              height: 64,
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&:disabled': { bgcolor: 'action.disabledBackground' },
+            }}
+          >
+            {isLoading ? (
+              <CircularProgress size={28} color="inherit" />
+            ) : (
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={isPlaying ? 'pause' : 'play'}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                  style={{ display: 'flex' }}
+                >
+                  {isPlaying ? <PauseIcon fontSize="large" /> : <PlayArrowIcon fontSize="large" />}
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </IconButton>
+        </motion.div>
 
-        <IconButton
-          onClick={() => onSkip(30)}
-          disabled={disabled || isLoading}
-          size="large"
-          aria-label="Skip forward 30 seconds"
-        >
-          <Forward30Icon fontSize="large" />
-        </IconButton>
+        <motion.div whileTap={{ scale: 0.85 }}>
+          <IconButton
+            onClick={() => onSkip(30)}
+            disabled={disabled || isLoading}
+            size="large"
+            aria-label="Skip forward 30 seconds"
+          >
+            <Forward30Icon fontSize="large" />
+          </IconButton>
+        </motion.div>
 
-        <IconButton
-          onClick={onNext}
-          disabled={disabled || isLoading || !hasNext}
-          size="large"
-          aria-label="Next track"
-        >
-          <SkipNextIcon fontSize="large" />
-        </IconButton>
+        <motion.div whileTap={{ scale: 0.85 }}>
+          <IconButton
+            onClick={onNext}
+            disabled={disabled || isLoading || !hasNext}
+            size="large"
+            aria-label="Next track"
+          >
+            <SkipNextIcon fontSize="large" />
+          </IconButton>
+        </motion.div>
       </Box>
 
       {/* Speed selector */}

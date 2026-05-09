@@ -244,11 +244,6 @@ export function DriveBrowserPage() {
           )}
         </Paper>
 
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
       </Stack>
     </Container>
   );

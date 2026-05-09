@@ -170,11 +170,11 @@
 
 Lock-screen контроли і Bluetooth-навушники.
 
-- [ ] `features/player/useMediaSession.ts` — реєстрація metadata + handlers
-- [ ] Метадані: title (назва файлу), artist (назва книги), artwork (default іконка)
-- [ ] Handlers: play, pause, seekbackward (30с), seekforward (30с), previoustrack, nexttrack
+- [x] `features/player/useMediaSession.ts` — реєстрація metadata + handlers
+- [x] Метадані: title (назва файлу), artist (назва книги), artwork (default іконка)
+- [x] Handlers: play, pause, seekbackward (30с), seekforward (30с), previoustrack, nexttrack
 - [ ] Перевірити на Android Chrome (lock screen), iOS Safari (control center), на ноуті — медіа-клавіші
-- [ ] Display playback state на lock screen синхронізований з реальним станом
+- [x] Display playback state на lock screen синхронізований з реальним станом
 
 ### Definition of done
 Заблокував телефон під час прослуховування — на lock-screen бачу обкладинку додатку, назву, кнопки play/pause/skip. Натискаю play на BT-навушниках — додаток грає. Ставлю на паузу з lock-screen — додаток паузить.
@@ -185,11 +185,11 @@ Lock-screen контроли і Bluetooth-навушники.
 
 Можна встановити на домашній екран телефону.
 
-- [ ] `npm install -D vite-plugin-pwa`
-- [ ] Налаштувати `vite.config.ts` з PWA plugin
-- [ ] Створити іконки: 192x192, 512x512, maskable (можна у https://maskable.app)
-- [ ] `manifest.webmanifest`: name "StoryWave", short_name "StoryWave", display "standalone", theme_color, background_color
-- [ ] Service worker: precache shell, runtime cache для статики (НЕ для Drive файлів)
+- [x] `npm install -D vite-plugin-pwa`
+- [x] Налаштувати `vite.config.ts` з PWA plugin
+- [x] Створити іконки: 192x192, 512x512, maskable (через `@vite-pwa/assets-generator` з logo.png)
+- [x] `manifest.webmanifest`: name "StoryWave", short_name "StoryWave", display "standalone", theme_color, background_color
+- [x] Service worker: precache shell, runtime cache для статики (НЕ для Drive файлів)
 - [ ] Перевірити Lighthouse PWA audit ≥ 90
 - [ ] Встановити на телефон, перевірити що відкривається без браузерної рамки
 
@@ -213,11 +213,11 @@ Lock-screen контроли і Bluetooth-навушники.
 - [ ] Cover art з ID3 тегів — використати в Media Session і UI
 
 ### Якість життя
-- [ ] Error boundary з нормальним fallback
-- [ ] Toast notifications (MUI Snackbar) для помилок Drive/Supabase
-- [ ] Skeletons замість spinner-ів
-- [ ] Анімації переходів (`framer-motion`?)
-- [ ] Keyboard shortcuts на десктопі (space, arrow left/right)
+- [x] Error boundary з нормальним fallback
+- [x] Toast notifications (MUI Snackbar) для помилок Drive/Supabase
+- [x] Skeletons замість spinner-ів
+- [x] Мікро-анімації (`framer-motion`): page transitions, stagger книг, play/pause icon swap, track title fade
+- [x] Keyboard shortcuts на десктопі (space, arrow left/right)
 
 ---
 
@@ -234,4 +234,4 @@ Lock-screen контроли і Bluetooth-навушники.
 
 ## Поточний фокус
 
-> **Етап 6 завершено.** Далі — Етап 7 (Media Session API).
+> **Етапи 7 і 8 завершено (код).** Залишилось протестувати: Етап 7 — lock screen / BT-навушники; Етап 8 — Lighthouse PWA audit і встановлення на телефон.

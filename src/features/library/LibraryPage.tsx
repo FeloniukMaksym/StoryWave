@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
-
 import Container from '@mui/material/Container';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -122,6 +122,15 @@ function BookCard({
   );
 }
 
+const cardContainerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+};
+const cardItemVariants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' as const } },
+};
+
 export function LibraryPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -157,39 +166,48 @@ export function LibraryPage() {
           </Paper>
         )}
 
-        {checked && resume && (
-          <Paper
-            sx={{ p: 3, border: 1, borderColor: 'primary.main', cursor: 'pointer' }}
-            onClick={go}
-          >
-            <Stack spacing={1.5}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="overline" color="primary">Continue listening</Typography>
-                  <Typography variant="body1" noWrap fontWeight={600}>
-                    {resume.bookTitle}
-                  </Typography>
-                </Box>
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<PlayArrowIcon />}
-                  onClick={(e) => { e.stopPropagation(); go(); }}
-                  sx={{ flexShrink: 0 }}
-                >
-                  Resume
-                </Button>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={resume.positionSeconds > 0 ? Math.min(100, (resume.positionSeconds / 3600) * 100) : 0}
-                sx={{ borderRadius: 1, height: 4 }}
-              />
-            </Stack>
-          </Paper>
-        )}
+        <AnimatePresence>
+          {checked && resume && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Paper
+                sx={{ p: 3, border: 1, borderColor: 'primary.main', cursor: 'pointer' }}
+                onClick={go}
+              >
+                <Stack spacing={1.5}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="overline" color="primary">Continue listening</Typography>
+                      <Typography variant="body1" noWrap fontWeight={600}>
+                        {resume.bookTitle}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<PlayArrowIcon />}
+                      onClick={(e) => { e.stopPropagation(); go(); }}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      Resume
+                    </Button>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={resume.positionSeconds > 0 ? Math.min(100, (resume.positionSeconds / 3600) * 100) : 0}
+                    sx={{ borderRadius: 1, height: 4 }}
+                  />
+                </Stack>
+              </Paper>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Books grid */}
+        {/* Books grid skeleton */}
         {booksLoading && (
           <Grid container spacing={2}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -200,22 +218,27 @@ export function LibraryPage() {
           </Grid>
         )}
 
+        {/* Books grid — staggered entrance */}
         {!booksLoading && books && books.length > 0 && (
           <Box>
             <Typography variant="overline" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
               Your books
             </Typography>
-            <Grid container spacing={2}>
-              {books.map((book) => (
-                <Grid key={book.id} size={{ xs: 12, sm: 6 }}>
-                  <BookCard book={book} onDelete={setBookToDelete} />
-                </Grid>
-              ))}
-            </Grid>
+            <motion.div variants={cardContainerVariants} initial="hidden" animate="show">
+              <Grid container spacing={2}>
+                {books.map((book) => (
+                  <Grid key={book.id} size={{ xs: 12, sm: 6 }}>
+                    <motion.div variants={cardItemVariants}>
+                      <BookCard book={book} onDelete={setBookToDelete} />
+                    </motion.div>
+                  </Grid>
+                ))}
+              </Grid>
+            </motion.div>
           </Box>
         )}
 
-        {/* Empty state / Add CTA */}
+        {/* Empty state */}
         {!booksLoading && (!books || books.length === 0) && (
           <Paper sx={{ p: 4 }}>
             <Stack spacing={2} alignItems="center" sx={{ textAlign: 'center' }}>
@@ -233,7 +256,6 @@ export function LibraryPage() {
           </Paper>
         )}
 
-        {/* Add more CTA when books exist */}
         {!booksLoading && books && books.length > 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Button variant="outlined" startIcon={<AddIcon />} onClick={() => navigate('/browse')}>
@@ -242,13 +264,11 @@ export function LibraryPage() {
           </Box>
         )}
 
-        {/* Account info */}
         <Typography variant="caption" color="text.disabled" textAlign="center">
           {user?.email}
         </Typography>
       </Stack>
 
-      {/* Delete confirmation dialog */}
       <Dialog open={Boolean(bookToDelete)} onClose={() => setBookToDelete(null)}>
         <DialogTitle>Remove book?</DialogTitle>
         <DialogContent>

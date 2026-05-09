@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
@@ -32,6 +33,19 @@ export function SignInPage() {
   return (
     <Container maxWidth="sm" sx={{ minHeight: '100dvh', display: 'flex', alignItems: 'center' }}>
       <Stack spacing={4} sx={{ width: '100%', textAlign: 'center', py: 6 }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="StoryWave"
+            sx={{ width: 120, height: 'auto', mb: 1 }}
+          />
+        </motion.div>
+
         <Box>
           <Typography variant="h3" component="h1" gutterBottom>
             StoryWave

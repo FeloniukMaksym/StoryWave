@@ -5,6 +5,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { theme } from './theme';
 import { queryClient } from '@/lib/queryClient';
+import { ErrorBoundary } from './ErrorBoundary';
+import { ToastSnackbar } from './ToastSnackbar';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -16,7 +18,10 @@ export function Providers({ children }: ProvidersProps) {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <ToastSnackbar />
         </ThemeProvider>
       </QueryClientProvider>
     </BrowserRouter>

@@ -1,17 +1,19 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '@mui/material/Alert';
 import { DriveAuthAlert } from '@/features/auth/DriveAuthAlert';
 import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Paper from '@mui/material/Paper';
+import Skeleton from '@mui/material/Skeleton';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -22,12 +24,14 @@ import { useFolderContents } from '@/features/drive-browser/useDrive';
 import { isAudioFile } from '@/lib/drive';
 import { upsertBook } from '@/lib/supabaseSync';
 import { useAuth } from '@/features/auth/useAuth';
+import { toast } from '@/app/toastStore';
 import { usePlayerStore } from './usePlayerStore';
 import { useAudioElement } from './useAudioElement';
 import { usePositionPersist } from './usePositionPersist';
 import { PlayerControls } from './PlayerControls';
 import { ProgressBar } from './ProgressBar';
 import { usePositionSync } from '@/features/sync/usePositionSync';
+import { useMediaSession } from './useMediaSession';
 
 export function PlayerPage() {
   const { bookId: folderIdParam = '' } = useParams<{ bookId: string }>();
@@ -67,12 +71,10 @@ export function PlayerPage() {
 
   const { loadFile, play, pause, seek, skip, setRate } = useAudioElement(handleEnded);
 
-  // supabaseBookId is the UUID from the books table (resolved after upsert)
   const supabaseBookId = store.supabaseBookId ?? '';
   usePositionPersist(supabaseBookId);
   usePositionSync(supabaseBookId);
 
-  // Upsert book into Supabase when folder is loaded, get back the UUID
   useEffect(() => {
     if (!user?.id || !folderId || audioFiles.length === 0) return;
     upsertBook(user.id, folderId, bookTitle)
@@ -84,7 +86,6 @@ export function PlayerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folderId, audioFiles.length, user?.id]);
 
-  // Auto-load file when resuming (resumeFileId in URL)
   const resumeHandledRef = useRef(false);
   useEffect(() => {
     if (resumeHandledRef.current) return;
@@ -98,14 +99,20 @@ export function PlayerPage() {
       .then(() => {
         if (resumeAt > 0) seek(resumeAt);
       })
-      .catch(console.error);
+      .catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeFileId, audioFiles.length, supabaseBookId]);
 
   const handleSelectFile = useCallback(
     async (fileId: string, fileName: string) => {
       setBookFinished(false);
-      await loadFile(fileId, fileName, supabaseBookId || folderId);
+      try {
+        await loadFile(fileId, fileName, supabaseBookId || folderId);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
+      }
     },
     [loadFile, supabaseBookId, folderId],
   );
@@ -126,6 +133,29 @@ export function PlayerPage() {
     void loadFile(next.id, next.name, supabaseBookId || folderId);
   }, [currentIdx, audioFiles, loadFile, supabaseBookId, folderId]);
 
+  useMediaSession({
+    onPlay: play,
+    onPause: pause,
+    onSkip: skip,
+    onPrev: handlePrev,
+    onNext: handleNext,
+    hasPrev: currentIdx > 0,
+    hasNext: currentIdx !== -1 && currentIdx < audioFiles.length - 1,
+  });
+
+  // Keyboard shortcuts: Space = play/pause, ← → = skip ±30s
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (!store.currentFileId) return;
+      if (e.code === 'Space') { e.preventDefault(); store.isPlaying ? pause() : play(); }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-30); }
+      if (e.code === 'ArrowRight') { e.preventDefault(); skip(30); }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [store.currentFileId, store.isPlaying, play, pause, skip]);
+
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 2, md: 4 } }}>
       <Stack spacing={3}>
@@ -139,18 +169,29 @@ export function PlayerPage() {
           </Typography>
         </Box>
 
-        {/* Player card — shown when a file is loaded */}
+        {/* Player card */}
         {store.currentFileId && (
           <Paper sx={{ p: 3 }}>
             <Stack spacing={2}>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                noWrap
-                textAlign="center"
-              >
-                {store.currentFileName}
-              </Typography>
+              {/* Track title — fades when track changes */}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={store.currentFileName}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    noWrap
+                    textAlign="center"
+                  >
+                    {store.currentFileName}
+                  </Typography>
+                </motion.div>
+              </AnimatePresence>
 
               <ProgressBar
                 position={store.position}
@@ -184,11 +225,23 @@ export function PlayerPage() {
           </Paper>
         )}
 
-        {/* File list */}
+        {/* File list skeleton */}
         {filesLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
-          </Box>
+          <Paper>
+            <List disablePadding>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <ListItem key={i} sx={{ py: 1.5 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <Skeleton variant="circular" width={20} height={20} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={<Skeleton width={`${55 + (i % 3) * 15}%`} />}
+                    secondary={<Skeleton width="25%" />}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
         )}
 
         {filesError && <DriveAuthAlert error={filesError} />}
@@ -221,10 +274,12 @@ export function PlayerPage() {
                       </ListItemIcon>
                       <ListItemText
                         primary={file.name}
-                        primaryTypographyProps={{
-                          noWrap: true,
-                          variant: 'body2',
-                          color: isCurrent ? 'primary' : 'text.primary',
+                        slotProps={{
+                          primary: {
+                            noWrap: true,
+                            variant: 'body2',
+                            color: isCurrent ? 'primary' : 'text.primary',
+                          },
                         }}
                         secondary={file.size ? formatBytes(Number(file.size)) : undefined}
                       />
