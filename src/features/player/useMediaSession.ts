@@ -51,8 +51,8 @@ export function useMediaSession({
     trySet('play', () => onPlayRef.current());
     trySet('pause', () => onPauseRef.current());
     trySet('stop', () => onPauseRef.current());
-    trySet('seekbackward', (d) => onSkipRef.current(-(d.seekOffset ?? 15)));
-    trySet('seekforward', (d) => onSkipRef.current(d.seekOffset ?? 15));
+    trySet('seekbackward', (d) => onSkipRef.current(-(d.seekOffset ?? 10)));
+    trySet('seekforward', (d) => onSkipRef.current(d.seekOffset ?? 10));
     trySet('previoustrack', () => { if (hasPrevRef.current) onPrevRef.current(); });
     trySet('nexttrack', () => { if (hasNextRef.current) onNextRef.current(); });
 

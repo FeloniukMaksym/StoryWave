@@ -8,38 +8,13 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
+import Replay10Icon from '@mui/icons-material/Replay10';
+import Forward10Icon from '@mui/icons-material/Forward10';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SpeedIcon from '@mui/icons-material/Speed';
 
 const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
-
-function SkipIcon({ seconds, direction }: { seconds: number; direction: 'back' | 'forward' }) {
-  return (
-    <Box sx={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28 }}>
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-        {direction === 'back' ? (
-          <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
-        ) : (
-          <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
-        )}
-      </svg>
-      <Typography
-        component="span"
-        sx={{
-          position: 'absolute',
-          fontSize: '7px',
-          fontWeight: 700,
-          lineHeight: 1,
-          bottom: 2,
-          color: 'inherit',
-        }}
-      >
-        {seconds}
-      </Typography>
-    </Box>
-  );
-}
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -73,8 +48,11 @@ export function PlayerControls({
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      {/* Main controls row */}
+    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
+      {/* Left spacer */}
+      <Box />
+
+      {/* Main controls — centered */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <motion.div whileTap={{ scale: 0.85 }}>
           <IconButton
@@ -89,16 +67,15 @@ export function PlayerControls({
 
         <motion.div whileTap={{ scale: 0.85 }}>
           <IconButton
-            onClick={() => onSkip(-15)}
+            onClick={() => onSkip(-10)}
             disabled={disabled || isLoading}
             size="large"
-            aria-label="Skip back 15 seconds"
+            aria-label="Skip back 10 seconds"
           >
-            <SkipIcon seconds={15} direction="back" />
+            <Replay10Icon fontSize="large" />
           </IconButton>
         </motion.div>
 
-        {/* Play/pause */}
         <motion.div whileTap={{ scale: 0.88 }} style={{ display: 'inline-flex' }}>
           <IconButton
             onClick={isPlaying ? onPause : onPlay}
@@ -135,12 +112,12 @@ export function PlayerControls({
 
         <motion.div whileTap={{ scale: 0.85 }}>
           <IconButton
-            onClick={() => onSkip(15)}
+            onClick={() => onSkip(10)}
             disabled={disabled || isLoading}
             size="large"
-            aria-label="Skip forward 15 seconds"
+            aria-label="Skip forward 10 seconds"
           >
-            <SkipIcon seconds={15} direction="forward" />
+            <Forward10Icon fontSize="large" />
           </IconButton>
         </motion.div>
 
@@ -156,16 +133,16 @@ export function PlayerControls({
         </motion.div>
       </Box>
 
-      {/* Speed selector — compact dropdown */}
-      <Box>
+      {/* Speed — right edge, same row */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <IconButton
           size="small"
           onClick={(e) => setAnchorEl(e.currentTarget)}
           aria-label="Playback speed"
-          sx={{ gap: 0.5, borderRadius: 1, px: 1 }}
+          sx={{ flexDirection: 'column', gap: 0, px: 1, py: 0.5, borderRadius: 1 }}
         >
           <SpeedIcon fontSize="small" />
-          <Typography variant="caption" fontWeight={600}>
+          <Typography variant="caption" fontWeight={600} lineHeight={1}>
             {playbackRate === 1 ? '1×' : `${playbackRate}×`}
           </Typography>
         </IconButton>
@@ -174,17 +151,14 @@ export function PlayerControls({
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={() => setAnchorEl(null)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
           {RATES.map((r) => (
             <MenuItem
               key={r}
               selected={r === playbackRate}
-              onClick={() => {
-                onRateChange(r);
-                setAnchorEl(null);
-              }}
+              onClick={() => { onRateChange(r); setAnchorEl(null); }}
               sx={{ minWidth: 80, justifyContent: 'center' }}
             >
               <Typography variant="body2" fontWeight={r === playbackRate ? 700 : 400}>

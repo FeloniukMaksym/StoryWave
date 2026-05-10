@@ -86,6 +86,11 @@ export function PlayerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folderId, audioFiles.length, user?.id]);
 
+  const currentFileRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    currentFileRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [store.currentFileId]);
+
   const resumeHandledRef = useRef(false);
   useEffect(() => {
     if (resumeHandledRef.current) return;
@@ -150,8 +155,8 @@ export function PlayerPage() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (!store.currentFileId) return;
       if (e.code === 'Space') { e.preventDefault(); store.isPlaying ? pause() : play(); }
-      if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-15); }
-      if (e.code === 'ArrowRight') { e.preventDefault(); skip(15); }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-10); }
+      if (e.code === 'ArrowRight') { e.preventDefault(); skip(10); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -252,43 +257,45 @@ export function PlayerPage() {
             <Typography variant="overline" sx={{ px: 2, pt: 1.5, display: 'block' }} color="text.secondary">
               Files
             </Typography>
-            <List disablePadding>
-              {audioFiles.map((file, idx) => {
-                const isCurrent = file.id === store.currentFileId;
-                return (
-                  <Box key={file.id}>
-                    {idx > 0 && <Divider component="li" />}
-                    <ListItemButton
-                      selected={isCurrent}
-                      onClick={() => void handleSelectFile(file.id, file.name)}
-                      sx={{ py: 1.5 }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        {isCurrent && store.isPlaying ? (
-                          <PlayArrowIcon color="primary" fontSize="small" />
-                        ) : (
-                          <AudioFileIcon
-                            fontSize="small"
-                            color={isCurrent ? 'primary' : 'action'}
-                          />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={file.name}
-                        slotProps={{
-                          primary: {
-                            noWrap: true,
-                            variant: 'body2',
-                            color: isCurrent ? 'primary' : 'text.primary',
-                          },
-                        }}
-                        secondary={file.size ? formatBytes(Number(file.size)) : undefined}
-                      />
-                    </ListItemButton>
-                  </Box>
-                );
-              })}
-            </List>
+            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+              <List disablePadding>
+                {audioFiles.map((file, idx) => {
+                  const isCurrent = file.id === store.currentFileId;
+                  return (
+                    <Box key={file.id} ref={isCurrent ? currentFileRef : null}>
+                      {idx > 0 && <Divider component="li" />}
+                      <ListItemButton
+                        selected={isCurrent}
+                        onClick={() => void handleSelectFile(file.id, file.name)}
+                        sx={{ py: 1.5 }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 36 }}>
+                          {isCurrent && store.isPlaying ? (
+                            <PlayArrowIcon color="primary" fontSize="small" />
+                          ) : (
+                            <AudioFileIcon
+                              fontSize="small"
+                              color={isCurrent ? 'primary' : 'action'}
+                            />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={file.name}
+                          slotProps={{
+                            primary: {
+                              noWrap: true,
+                              variant: 'body2',
+                              color: isCurrent ? 'primary' : 'text.primary',
+                            },
+                          }}
+                          secondary={file.size ? formatBytes(Number(file.size)) : undefined}
+                        />
+                      </ListItemButton>
+                    </Box>
+                  );
+                })}
+              </List>
+            </Box>
           </Paper>
         )}
 
