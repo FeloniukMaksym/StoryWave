@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+export const STORED_GOOGLE_REFRESH_TOKEN_KEY = 'sw_google_refresh_token';
 
 export interface AuthState {
   session: Session | null;
@@ -27,9 +28,17 @@ export function useAuth(): AuthState {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setLoading(false);
+
+      // Supabase drops provider_refresh_token after JWT refresh — persist it ourselves
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && newSession?.provider_refresh_token) {
+        localStorage.setItem(STORED_GOOGLE_REFRESH_TOKEN_KEY, newSession.provider_refresh_token);
+      }
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem(STORED_GOOGLE_REFRESH_TOKEN_KEY);
+      }
     });
 
     return () => {

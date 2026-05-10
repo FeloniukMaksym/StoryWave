@@ -60,7 +60,7 @@ export function PlayerPage() {
 
     if (idx < audioFiles.length - 1) {
       const next = audioFiles[idx + 1];
-      void loadFile(next.id, next.name, bookKey).then(() => {
+      void loadFile(next.id, next.name, bookKey, true).then(() => {
         void play();
       });
     } else {
@@ -110,11 +110,12 @@ export function PlayerPage() {
       setBookFinished(false);
       try {
         await loadFile(fileId, fileName, supabaseBookId || folderId);
+        void play();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
       }
     },
-    [loadFile, supabaseBookId, folderId],
+    [loadFile, play, supabaseBookId, folderId],
   );
 
   const currentIdx = audioFiles.findIndex((f) => f.id === store.currentFileId);
@@ -123,15 +124,15 @@ export function PlayerPage() {
     if (currentIdx <= 0) return;
     const prev = audioFiles[currentIdx - 1];
     setBookFinished(false);
-    void loadFile(prev.id, prev.name, supabaseBookId || folderId);
-  }, [currentIdx, audioFiles, loadFile, supabaseBookId, folderId]);
+    void loadFile(prev.id, prev.name, supabaseBookId || folderId, true).then(() => void play());
+  }, [currentIdx, audioFiles, loadFile, play, supabaseBookId, folderId]);
 
   const handleNext = useCallback(() => {
     if (currentIdx === -1 || currentIdx >= audioFiles.length - 1) return;
     const next = audioFiles[currentIdx + 1];
     setBookFinished(false);
-    void loadFile(next.id, next.name, supabaseBookId || folderId);
-  }, [currentIdx, audioFiles, loadFile, supabaseBookId, folderId]);
+    void loadFile(next.id, next.name, supabaseBookId || folderId, true).then(() => void play());
+  }, [currentIdx, audioFiles, loadFile, play, supabaseBookId, folderId]);
 
   useMediaSession({
     onPlay: play,
@@ -149,8 +150,8 @@ export function PlayerPage() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (!store.currentFileId) return;
       if (e.code === 'Space') { e.preventDefault(); store.isPlaying ? pause() : play(); }
-      if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-30); }
-      if (e.code === 'ArrowRight') { e.preventDefault(); skip(30); }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-15); }
+      if (e.code === 'ArrowRight') { e.preventDefault(); skip(15); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);

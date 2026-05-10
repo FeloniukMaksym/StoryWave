@@ -6,31 +6,44 @@ import { localPosition } from './localPosition';
 const audio = new Audio();
 audio.preload = 'auto';
 
+// In-session blob URL cache — avoids re-downloading when going back/forward
+const blobUrlCache = new Map<string, string>();
+const BLOB_CACHE_MAX = 3;
+
+async function getBlobUrl(fileId: string): Promise<string> {
+  const cached = blobUrlCache.get(fileId);
+  if (cached) return cached;
+
+  const blob = await downloadFileAsBlob(fileId);
+  const url = URL.createObjectURL(blob);
+
+  if (blobUrlCache.size >= BLOB_CACHE_MAX) {
+    const oldestKey = blobUrlCache.keys().next().value!;
+    URL.revokeObjectURL(blobUrlCache.get(oldestKey)!);
+    blobUrlCache.delete(oldestKey);
+  }
+
+  blobUrlCache.set(fileId, url);
+  return url;
+}
+
 export function useAudioElement(onEnded?: () => void) {
-  const blobUrlRef = useRef<string | null>(null);
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
-  const store = usePlayerStore();
 
   const loadFile = useCallback(
-    async (fileId: string, fileName: string, bookId: string) => {
+    async (fileId: string, fileName: string, bookId: string, ignorePosition = false) => {
+      const store = usePlayerStore.getState();
       audio.pause();
       store.setIsLoading(true);
       store.setIsPlaying(false);
       store.setCurrentFile(fileId, fileName);
 
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-
       try {
-        const blob = await downloadFileAsBlob(fileId);
-        const url = URL.createObjectURL(blob);
-        blobUrlRef.current = url;
+        const url = await getBlobUrl(fileId);
         audio.src = url;
 
-        const saved = localPosition.get(bookId, fileId);
+        const saved = ignorePosition ? 0 : localPosition.get(bookId, fileId);
         audio.load();
 
         await new Promise<void>((resolve, reject) => {
@@ -49,13 +62,13 @@ export function useAudioElement(onEnded?: () => void) {
         });
 
         if (saved > 0) audio.currentTime = saved;
-        store.setDuration(audio.duration || 0);
-        store.setPosition(audio.currentTime);
+        usePlayerStore.getState().setDuration(audio.duration || 0);
+        usePlayerStore.getState().setPosition(audio.currentTime);
       } finally {
-        store.setIsLoading(false);
+        usePlayerStore.getState().setIsLoading(false);
       }
     },
-    [store],
+    [],
   );
 
   const play = useCallback(() => {
@@ -76,14 +89,18 @@ export function useAudioElement(onEnded?: () => void) {
 
   const setRate = useCallback((rate: number) => {
     audio.playbackRate = rate;
-    store.setPlaybackRate(rate);
-  }, [store]);
+    usePlayerStore.getState().setPlaybackRate(rate);
+  }, []);
 
+  // Register audio element listeners once — empty deps prevents the ended listener
+  // from being briefly removed on every timeupdate (which fires 4x/sec and triggers
+  // store updates → effect re-run). In background, that removal window is larger
+  // and can swallow the ended event, causing auto-advance to silently fail.
   useEffect(() => {
-    const onPlay = () => store.setIsPlaying(true);
-    const onPause = () => store.setIsPlaying(false);
-    const onTimeUpdate = () => store.setPosition(audio.currentTime);
-    const onDurationChange = () => store.setDuration(audio.duration || 0);
+    const onPlay = () => usePlayerStore.getState().setIsPlaying(true);
+    const onPause = () => usePlayerStore.getState().setIsPlaying(false);
+    const onTimeUpdate = () => usePlayerStore.getState().setPosition(audio.currentTime);
+    const onDurationChange = () => usePlayerStore.getState().setDuration(audio.duration || 0);
     const onEndedHandler = () => onEndedRef.current?.();
 
     audio.addEventListener('play', onPlay);
@@ -98,14 +115,6 @@ export function useAudioElement(onEnded?: () => void) {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('ended', onEndedHandler);
-    };
-  }, [store]);
-
-  useEffect(() => {
-    return () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-      }
     };
   }, []);
 

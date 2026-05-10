@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { STORED_GOOGLE_REFRESH_TOKEN_KEY } from '@/features/auth/useAuth';
 
 const BASE = 'https://www.googleapis.com/drive/v3';
 
@@ -9,30 +10,41 @@ export class DriveAuthError extends Error {
   }
 }
 
-// In-memory cache so we don't refresh on every call
 let cachedToken: string | null = null;
 let tokenExpiresAt: number = 0;
 
-async function refreshProviderToken(): Promise<string> {
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+function cacheToken(token: string, expiresInMs = 55 * 60 * 1000) {
+  cachedToken = token;
+  tokenExpiresAt = Date.now() + expiresInMs;
+}
 
-  // Token still valid (with 60s buffer)
+async function refreshProviderToken(): Promise<string> {
+  // 1. In-memory cache
   if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 
-  // Fresh provider_token from session (just signed in or Supabase refreshed)
-  if (session?.provider_token) {
-    cachedToken = session.provider_token;
-    // expires_at on session is Supabase JWT expiry, not Google token expiry.
-    // Google tokens live 1h — set our cache to 55 min from now.
-    tokenExpiresAt = Date.now() + 55 * 60 * 1000;
-    return cachedToken;
+  // 2. Current session already has a valid provider_token
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.provider_token) {
+    cacheToken(data.session.provider_token);
+    return cachedToken!;
   }
 
-  // Try to exchange provider_refresh_token for a new access token via Google
-  const refreshToken = session?.provider_refresh_token;
+  // 3. Ask Supabase to refresh its session — it holds the Google refresh token
+  //    server-side and may return a fresh provider_token
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  if (refreshed.session?.provider_token) {
+    cacheToken(refreshed.session.provider_token);
+    return cachedToken!;
+  }
+
+  // 4. Direct Google token exchange using refresh token persisted in localStorage
+  //    (Supabase drops provider_refresh_token from client session after JWT refresh)
+  const refreshToken =
+    refreshed.session?.provider_refresh_token ??
+    localStorage.getItem(STORED_GOOGLE_REFRESH_TOKEN_KEY);
+
   if (!refreshToken) {
-    throw new DriveAuthError('No Google refresh token — user must re-authenticate.');
+    throw new DriveAuthError('Google Drive access expired. Please reconnect.');
   }
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -49,14 +61,13 @@ async function refreshProviderToken(): Promise<string> {
   });
 
   if (!res.ok) {
-    await supabase.auth.signOut();
-    throw new DriveAuthError('Google session expired. Please sign in again.');
+    // Don't sign out — just surface a reconnect prompt
+    throw new DriveAuthError('Google Drive access expired. Please reconnect.');
   }
 
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cachedToken = json.access_token;
-  tokenExpiresAt = Date.now() + json.expires_in * 1000;
-  return cachedToken;
+  cacheToken(json.access_token, json.expires_in * 1000);
+  return cachedToken!;
 }
 
 const AUDIO_MIME_TYPES = [
