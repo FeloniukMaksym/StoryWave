@@ -88,7 +88,7 @@ export function PlayerPage() {
 
   const currentFileRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    currentFileRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    currentFileRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [store.currentFileId]);
 
   const resumeHandledRef = useRef(false);
@@ -163,8 +163,18 @@ export function PlayerPage() {
   }, [store.currentFileId, store.isPlaying, play, pause, skip]);
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 2, md: 4 } }}>
-      <Stack spacing={3}>
+    <Container
+      maxWidth="sm"
+      sx={{
+        height: '100dvh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        pt: { xs: 2, md: 4 },
+        pb: 0,
+      }}
+    >
+      <Stack spacing={3} sx={{ flex: 1, minHeight: 0 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton onClick={() => navigate('/library')} size="small">
@@ -253,11 +263,28 @@ export function PlayerPage() {
         {filesError && <DriveAuthAlert error={filesError} />}
 
         {!filesLoading && audioFiles.length > 0 && (
-          <Paper>
-            <Typography variant="overline" sx={{ px: 2, pt: 1.5, display: 'block' }} color="text.secondary">
+          <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <Typography variant="overline" sx={{ px: 2, pt: 1.5, display: 'block', flexShrink: 0 }} color="text.secondary">
               Files
             </Typography>
-            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+            <Box
+              sx={{
+                flex: 1,
+                overflowY: 'auto',
+                pb: { xs: 2, md: 4 },
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.15) transparent',
+                '&::-webkit-scrollbar': { width: 4 },
+                '&::-webkit-scrollbar-track': { background: 'transparent' },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(255,255,255,0.15)',
+                  borderRadius: 2,
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: 'rgba(255,255,255,0.3)',
+                },
+              }}
+            >
               <List disablePadding>
                 {audioFiles.map((file, idx) => {
                   const isCurrent = file.id === store.currentFileId;
