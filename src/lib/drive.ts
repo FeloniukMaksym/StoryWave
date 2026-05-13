@@ -48,13 +48,16 @@ async function refreshProviderToken(): Promise<string> {
   }
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
   if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID is not set');
+  if (!clientSecret) throw new Error('VITE_GOOGLE_CLIENT_SECRET is not set');
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: clientId,
+      client_secret: clientSecret,
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
     }),
