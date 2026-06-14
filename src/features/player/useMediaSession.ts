@@ -5,6 +5,7 @@ interface UseMediaSessionOptions {
   onPlay: () => void;
   onPause: () => void;
   onSkip: (delta: number) => void;
+  onSeekTo: (time: number) => void;
   onPrev: () => void;
   onNext: () => void;
   hasPrev: boolean;
@@ -15,6 +16,7 @@ export function useMediaSession({
   onPlay,
   onPause,
   onSkip,
+  onSeekTo,
   onPrev,
   onNext,
   hasPrev,
@@ -27,6 +29,7 @@ export function useMediaSession({
   const onPlayRef = useRef(onPlay);
   const onPauseRef = useRef(onPause);
   const onSkipRef = useRef(onSkip);
+  const onSeekToRef = useRef(onSeekTo);
   const onPrevRef = useRef(onPrev);
   const onNextRef = useRef(onNext);
   const hasPrevRef = useRef(hasPrev);
@@ -34,6 +37,7 @@ export function useMediaSession({
   onPlayRef.current = onPlay;
   onPauseRef.current = onPause;
   onSkipRef.current = onSkip;
+  onSeekToRef.current = onSeekTo;
   onPrevRef.current = onPrev;
   onNextRef.current = onNext;
   hasPrevRef.current = hasPrev;
@@ -53,11 +57,12 @@ export function useMediaSession({
     trySet('stop', () => onPauseRef.current());
     trySet('seekbackward', (d) => onSkipRef.current(-(d.seekOffset ?? 10)));
     trySet('seekforward', (d) => onSkipRef.current(d.seekOffset ?? 10));
+    trySet('seekto', (d) => { if (typeof d.seekTime === 'number') onSeekToRef.current(d.seekTime); });
     trySet('previoustrack', () => { if (hasPrevRef.current) onPrevRef.current(); });
     trySet('nexttrack', () => { if (hasNextRef.current) onNextRef.current(); });
 
     return () => {
-      for (const action of ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'] as MediaSessionAction[]) {
+      for (const action of ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack'] as MediaSessionAction[]) {
         try { navigator.mediaSession.setActionHandler(action, null); } catch { /* ignore */ }
       }
     };

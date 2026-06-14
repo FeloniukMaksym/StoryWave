@@ -12,13 +12,28 @@ export class DriveAuthError extends Error {
 
 let cachedToken: string | null = null;
 let tokenExpiresAt: number = 0;
+let inFlightRefresh: Promise<string> | null = null;
 
 function cacheToken(token: string, expiresInMs = 55 * 60 * 1000) {
   cachedToken = token;
   tokenExpiresAt = Date.now() + expiresInMs;
 }
 
-async function refreshProviderToken(): Promise<string> {
+// Coalesce concurrent refreshes (e.g. current track + prefetch firing together)
+// into a single token exchange instead of several parallel ones.
+function refreshProviderToken(): Promise<string> {
+  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) {
+    return Promise.resolve(cachedToken);
+  }
+  if (!inFlightRefresh) {
+    inFlightRefresh = doRefreshProviderToken().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
+async function doRefreshProviderToken(): Promise<string> {
   // 1. In-memory cache
   if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Alert from '@mui/material/Alert';
@@ -27,7 +27,6 @@ import { useAuth } from '@/features/auth/useAuth';
 import { toast } from '@/app/toastStore';
 import { usePlayerStore } from './usePlayerStore';
 import { useAudioElement } from './useAudioElement';
-import { usePositionPersist } from './usePositionPersist';
 import { PlayerControls } from './PlayerControls';
 import { ProgressBar } from './ProgressBar';
 import { usePositionSync } from '@/features/sync/usePositionSync';
@@ -45,34 +44,38 @@ export function PlayerPage() {
   const resumeAt = Number(searchParams.get('resumeAt') ?? 0);
 
   const { data: files, isLoading: filesLoading, error: filesError } = useFolderContents(folderId);
-  const audioFiles = (files?.filter(isAudioFile) ?? []).slice().sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+  const audioFiles = useMemo(
+    () =>
+      (files?.filter(isAudioFile) ?? []).slice().sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      ),
+    [files],
   );
 
   const store = usePlayerStore();
   const [bookFinished, setBookFinished] = useState(false);
 
   const handleEnded = useCallback(() => {
-    const { currentFileId, supabaseBookId: sbId } = usePlayerStore.getState();
-    const bookKey = sbId || folderId;
+    const { currentFileId } = usePlayerStore.getState();
     const idx = audioFiles.findIndex((f) => f.id === currentFileId);
     if (idx === -1) return;
 
     if (idx < audioFiles.length - 1) {
       const next = audioFiles[idx + 1];
-      void loadFile(next.id, next.name, bookKey, true).then(() => {
-        void play();
-      });
+      loadFile(next.id, next.name, 0)
+        .then(() => play())
+        .catch((e: unknown) =>
+          toast.error(e instanceof Error ? e.message : 'Failed to load next file'),
+        );
     } else {
       setBookFinished(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioFiles, folderId]);
+  }, [audioFiles]);
 
-  const { loadFile, play, pause, seek, skip, setRate } = useAudioElement(handleEnded);
+  const { loadFile, prefetch, play, pause, seek, skip, setRate } = useAudioElement(handleEnded);
 
   const supabaseBookId = store.supabaseBookId ?? '';
-  usePositionPersist(supabaseBookId);
   usePositionSync(supabaseBookId);
 
   useEffect(() => {
@@ -100,27 +103,31 @@ export function PlayerPage() {
     if (!file) return;
 
     resumeHandledRef.current = true;
-    loadFile(file.id, file.name, supabaseBookId || folderId)
-      .then(() => {
-        if (resumeAt > 0) seek(resumeAt);
-      })
-      .catch((e: unknown) => {
-        toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
-      });
+    loadFile(file.id, file.name, resumeAt).catch((e: unknown) => {
+      toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeFileId, audioFiles.length, supabaseBookId]);
+  }, [resumeFileId, audioFiles.length]);
 
   const handleSelectFile = useCallback(
     async (fileId: string, fileName: string) => {
+      // Tapping the track that's already loaded just toggles play/pause —
+      // reloading it from 0 would throw away the current position.
+      const { currentFileId, isPlaying } = usePlayerStore.getState();
+      if (fileId === currentFileId) {
+        if (isPlaying) pause();
+        else play();
+        return;
+      }
       setBookFinished(false);
       try {
-        await loadFile(fileId, fileName, supabaseBookId || folderId);
-        void play();
+        await loadFile(fileId, fileName, 0);
+        play();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'Failed to load audio file');
       }
     },
-    [loadFile, play, supabaseBookId, folderId],
+    [loadFile, play, pause],
   );
 
   const currentIdx = audioFiles.findIndex((f) => f.id === store.currentFileId);
@@ -129,32 +136,48 @@ export function PlayerPage() {
     if (currentIdx <= 0) return;
     const prev = audioFiles[currentIdx - 1];
     setBookFinished(false);
-    void loadFile(prev.id, prev.name, supabaseBookId || folderId, true).then(() => void play());
-  }, [currentIdx, audioFiles, loadFile, play, supabaseBookId, folderId]);
+    loadFile(prev.id, prev.name, 0)
+      .then(() => play())
+      .catch((e: unknown) =>
+        toast.error(e instanceof Error ? e.message : 'Failed to load audio file'),
+      );
+  }, [currentIdx, audioFiles, loadFile, play]);
 
   const handleNext = useCallback(() => {
     if (currentIdx === -1 || currentIdx >= audioFiles.length - 1) return;
     const next = audioFiles[currentIdx + 1];
     setBookFinished(false);
-    void loadFile(next.id, next.name, supabaseBookId || folderId, true).then(() => void play());
-  }, [currentIdx, audioFiles, loadFile, play, supabaseBookId, folderId]);
+    loadFile(next.id, next.name, 0)
+      .then(() => play())
+      .catch((e: unknown) =>
+        toast.error(e instanceof Error ? e.message : 'Failed to load audio file'),
+      );
+  }, [currentIdx, audioFiles, loadFile, play]);
+
+  // Warm the next track's blob while the current one plays, so manual Next and
+  // auto-advance switch instantly instead of waiting on a fresh download.
+  useEffect(() => {
+    if (currentIdx === -1 || currentIdx >= audioFiles.length - 1) return;
+    prefetch(audioFiles[currentIdx + 1].id);
+  }, [currentIdx, audioFiles, prefetch]);
 
   useMediaSession({
     onPlay: play,
     onPause: pause,
     onSkip: skip,
+    onSeekTo: seek,
     onPrev: handlePrev,
     onNext: handleNext,
     hasPrev: currentIdx > 0,
     hasNext: currentIdx !== -1 && currentIdx < audioFiles.length - 1,
   });
 
-  // Keyboard shortcuts: Space = play/pause, ← → = skip ±30s
+  // Keyboard shortcuts: Space = play/pause, ← → = skip ±10s
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (!store.currentFileId) return;
-      if (e.code === 'Space') { e.preventDefault(); store.isPlaying ? pause() : play(); }
+      if (e.code === 'Space') { e.preventDefault(); if (store.isPlaying) pause(); else play(); }
       if (e.code === 'ArrowLeft') { e.preventDefault(); skip(-10); }
       if (e.code === 'ArrowRight') { e.preventDefault(); skip(10); }
     };
